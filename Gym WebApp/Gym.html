@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>برنامه تمرین</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@400;500;700&display=swap">
+<style>
+/* Layout: a gym logbook. A week strip sits over one day's lifts; each lift is a card with its photo, set count and tappable set bubbles. Settings is a per-weekday accordion. */
+:root {
+  --bg: #EDEFEA;
+  --surface: #F8F9F6;
+  --ink: #121A16;
+  --muted: #5C6A62;
+  --line: #D3D8D0;
+  --accent: #1B4DE4;
+  --accent-ink: #FFFFFF;
+  --done: #17835A;
+  --done-bg: #DDF0E6;
+  --danger: #B3261E;
+  --font-display: "Lalezar", "Vazirmatn", Tahoma, system-ui, sans-serif;
+  --font-body: "Vazirmatn", Tahoma, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1512; --surface: #172019; --ink: #E8EEE9; --muted: #93A399; --line: #27342B;
+    --accent: #7C97FF; --accent-ink: #0B1020; --done: #4FCB93; --done-bg: #163226; --danger: #FF8A80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1512; --surface: #172019; --ink: #E8EEE9; --muted: #93A399; --line: #27342B;
+  --accent: #7C97FF; --accent-ink: #0B1020; --done: #4FCB93; --done-bg: #163226; --danger: #FF8A80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.7;
+  padding-block: 20px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 720px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; }
+.top { display: flex; flex-direction: column; gap: 14px; }
+.eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0; }
+.brand { font-family: var(--font-display); font-size: 40px; line-height: 1.1; margin: 0; text-wrap: balance; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; background: var(--line); border-radius: 12px; padding: 3px; gap: 3px; }
+.tab { border: 0; background: transparent; padding: 9px 12px; border-radius: 10px; font-weight: 500; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+
+.strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.chip { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 0 10px; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; color: var(--muted); }
+.chip b { font-family: var(--font-display); font-weight: 400; font-size: 20px; line-height: 1.2; color: var(--ink); }
+.chip small { font-size: 11px; }
+.chip .dot { width: 6px; height: 6px; border-radius: 50%; background: transparent; }
+.chip.on .dot { background: var(--accent); }
+.chip.today { border-color: var(--ink); }
+.chip.sel { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip.sel b { color: var(--accent-ink); }
+.chip.sel .dot { background: var(--accent-ink); }
+.chip.off:not(.sel) { opacity: .6; }
+
+.dayhead { display: flex; flex-direction: column; gap: 10px; }
+.dayhead h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 30px; line-height: 1.2; text-wrap: balance; }
+.dayhead .sub { color: var(--muted); }
+.bar { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .25s ease; }
+.bar.full > i { background: var(--done); }
+.progtxt { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.list { display: flex; flex-direction: column; gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; }
+.card.done { background: var(--done-bg); border-color: var(--done); }
+.thumb { width: 88px; height: 88px; border-radius: 12px; background: var(--line); border: 0; padding: 0; overflow: hidden; display: grid; place-items: center; color: var(--muted); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb svg { width: 44px; height: 44px; }
+.cbody { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.crow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.cname { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font-size: 12.5px; padding: 1px 9px; border-radius: 99px; background: var(--bg); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 13.5px; margin: 0; overflow-wrap: anywhere; }
+.allcheck { flex: none; width: 40px; height: 40px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); display: grid; place-items: center; color: transparent; }
+.allcheck svg { width: 22px; height: 22px; }
+.card.done .allcheck { background: var(--done); border-color: var(--done); color: var(--surface); }
+.sets { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; padding-top: 2px; }
+.set { width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); font-family: var(--font-display); font-size: 18px; padding: 0; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+.set[aria-pressed="true"] { background: var(--done); border-color: var(--done); color: var(--bg); }
+.setlabel { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); margin: 2px 0 -4px; }
+
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 16px; padding: 24px 18px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.empty h3 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 22px; }
+.empty p { margin: 0; color: var(--muted); }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 9px 16px; font-weight: 500; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.small { padding: 5px 11px; font-size: 13px; border-radius: 10px; }
+.btn.danger { color: var(--danger); }
+.btn:disabled { opacity: .45; cursor: default; }
+.win { background: var(--done-bg); color: var(--done); border-radius: 12px; padding: 10px 14px; font-weight: 700; }
+
+/* settings */
+.days { display: flex; flex-direction: column; gap: 10px; }
+.acc { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.acchead { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; }
+.accbtn { border: 0; background: transparent; text-align: start; padding: 2px 0; display: flex; flex-direction: column; min-width: 0; }
+.accbtn b { font-size: 16px; }
+.accbtn span { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chev { transition: transform .2s; color: var(--muted); display: grid; place-items: center; width: 28px; height: 28px; }
+.acc.open .chev { transform: rotate(180deg); }
+.switch { position: relative; width: 46px; height: 28px; border-radius: 99px; background: var(--line); border: 0; padding: 0; transition: background .15s; }
+.switch::after { content: ""; position: absolute; top: 3px; inset-inline-start: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: inset-inline-start .15s; }
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { inset-inline-start: 21px; }
+.accbody { border-top: 1px solid var(--line); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.field label { font-size: 12.5px; color: var(--muted); }
+.in { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 11px; min-width: 0; }
+.exed { border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; background: var(--bg); }
+.pick { width: 96px; height: 96px; border-radius: 12px; border: 1.5px dashed var(--muted); background: var(--surface); padding: 0; overflow: hidden; display: grid; place-items: center; color: var(--muted); font-size: 12px; text-align: center; line-height: 1.4; }
+.pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fields { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.two { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; }
+.tools { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.foot { color: var(--muted); font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+.foot .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.veil { position: fixed; inset: 0; background: rgba(8,12,10,.82); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.veil img { max-width: 100%; max-height: 82vh; border-radius: 14px; display: block; }
+.veil .x { position: absolute; top: calc(12px + env(safe-area-inset-top, 0px)); inset-inline-end: 14px; background: var(--surface); border: 0; border-radius: 99px; width: 40px; height: 40px; font-size: 20px; }
+.toast { position: fixed; inset-inline: 0; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); margin-inline: auto; width: fit-content; max-width: calc(100% - 32px); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 12px; z-index: 30; }
+.offline { background: var(--surface); border: 1px dashed var(--muted); border-radius: 12px; padding: 8px 12px; font-size: 13.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (max-width: 420px) { .brand { font-size: 34px; } .exed { grid-template-columns: 1fr; } .pick { width: 100%; height: 140px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap" dir="rtl" lang="fa" id="app"></div>
+
+<script>
+(function () {
+  "use strict";
+  var DAYS = [
+    { n: "شنبه", s: "ش" }, { n: "یکشنبه", s: "ی" }, { n: "دوشنبه", s: "د" }, { n: "سه‌شنبه", s: "س" },
+    { n: "چهارشنبه", s: "چ" }, { n: "پنجشنبه", s: "پ" }, { n: "جمعه", s: "ج" }
+  ];
+    var app = document.getElementById("app");
+  var state = { docs: {}, tab: "today", sel: null, open: null, ready: false, pending: null, light: null, confirm: null };
+  var dirty = new Set(), timers = {}, chains = {};
+
+  /* ---------- helpers ---------- */
+  var faD = "۰۱۲۳۴۵۶۷۸۹";
+  function toFa(v) { return String(v).replace(/[0-9]/g, function (d) { return faD[d]; }); }
+  function toEn(v) {
+    return String(v).replace(/[۰-۹]/g, function (d) { return faD.indexOf(d); })
+      .replace(/[٠-٩]/g, function (d) { return d.charCodeAt(0) - 1632; });
+  }
+  function uid() { return "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function h(tag, attrs) {
+    var e = document.createElement(tag), kids = Array.prototype.slice.call(arguments, 2);
+    Object.keys(attrs || {}).forEach(function (k) {
+      var v = attrs[k];
+      if (v == null || v === false) return;
+      if (k === "class") e.className = v;
+      else if (k.slice(0, 2) === "on") e.addEventListener(k.slice(2), v);
+      else if (v === true) e.setAttribute(k, "");
+      else e.setAttribute(k, v);
+    });
+    (function add(list) {
+      list.forEach(function (c) {
+        if (c == null || c === false) return;
+        if (Array.isArray(c)) return add(c);
+        e.append(c.nodeType ? c : document.createTextNode(c));
+      });
+    })(kids);
+    return e;
+  }
+  function svg(path, extra) {
+    var s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
+    s.setAttribute("stroke-width", "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round");
+    s.setAttribute("aria-hidden", "true");
+    s.innerHTML = path; if (extra) s.setAttribute("class", extra);
+    return s;
+  }
+  var ICON_CHECK = '<path d="M5 12.5l4.5 4.5L19 7.5"/>';
+  var ICON_CHEV = '<path d="M6 9l6 6 6-6"/>';
+  var ICON_BAR = '<path d="M3 12h18M6 8v8M18 8v8M3 10v4M21 10v4"/>';
+  function toast(msg) {
+    var t = h("div", { class: "toast", role: "status" }, msg);
+    document.body.append(t); setTimeout(function () { t.remove(); }, 3200);
+  }
+  function todayIdx() { return (new Date().getDay() + 1) % 7; }
+  function dateOf(i) {
+    var d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - todayIdx() + i);
+    var m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
+    return { iso: d.getFullYear() + "-" + m + "-" + day, obj: d };
+  }
+  function faDate(d) {
+    try { return new Intl.DateTimeFormat("fa-IR-u-ca-persian", { day: "numeric", month: "long" }).format(d); }
+    catch (e) { return ""; }
+  }
+  function getDay(i) { return state.docs["day-" + i] || { enabled: false, title: "", ex: [] }; }
+  function defaultSel() {
+    var t = todayIdx();
+    for (var k = 0; k < 7; k++) { var i = (t + k) % 7; if (getDay(i).enabled) return i; }
+    return t;
+  }
+  function selDay() { return state.sel == null ? defaultSel() : state.sel; }
+  function hasPlan() { for (var i = 0; i < 7; i++) if (state.docs["day-" + i]) return true; return false; }
+
+  /* ---------- storage: IndexedDB in this browser, no server ---------- */
+  var idb = null, persistedOk = null;
+  function openDb() {
+    return new Promise(function (res, rej) {
+      if (!window.indexedDB) return rej(new Error("no idb"));
+      var r = indexedDB.open("gym-plan", 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore("docs", { keyPath: "id" }); };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function idbAll() {
+    return new Promise(function (res, rej) {
+      var q = idb.transaction("docs").objectStore("docs").getAll();
+      q.onsuccess = function () { res(q.result); }; q.onerror = function () { rej(q.error); };
+    });
+  }
+  function idbWrite(fn) {
+    return new Promise(function (res, rej) {
+      var t = idb.transaction("docs", "readwrite"); fn(t.objectStore("docs"));
+      t.oncomplete = function () { res(); }; t.onerror = function () { rej(t.error); }; t.onabort = function () { rej(t.error); };
+    });
+  }
+  function lsRead() { try { return JSON.parse(localStorage.getItem("gym-plan-docs-v1") || "{}"); } catch (e) { return {}; } }
+  function lsWrite() { try { localStorage.setItem("gym-plan-docs-v1", JSON.stringify(state.docs)); } catch (e) { toast("فضای ذخیره‌سازی پر است یا در دسترس نیست."); } }
+  function putRaw(id, data) {
+    if (idb) return idbWrite(function (s) { s.put({ id: id, data: data }); });
+    lsWrite(); return Promise.resolve();
+  }
+  function setDoc(id, data) {
+    state.docs[id] = data; dirty.add(id); queueSave(id);
+    if (!state.docs["meta-backup"]) { state.docs["meta-backup"] = { t: Date.now(), real: false }; putRaw("meta-backup", state.docs["meta-backup"]).catch(function () {}); }
+    askPersist();
+  }
+  function delDoc(id) { state.docs[id] = null; dirty.add(id); queueSave(id); }
+  function queueSave(id) { clearTimeout(timers[id]); timers[id] = setTimeout(function () { persist(id); }, 300); }
+  function persist(id) {
+    var snapshot = state.docs[id];
+    chains[id] = (chains[id] || Promise.resolve()).then(function () {
+      if (snapshot == null) { return idb ? idbWrite(function (s) { s.delete(id); }) : (lsWrite(), Promise.resolve()); }
+      return putRaw(id, snapshot);
+    }).then(function () {
+      if (state.docs[id] === snapshot) { dirty.delete(id); if (snapshot == null) delete state.docs[id]; }
+    }).catch(function () { toast("ذخیره نشد. فضای مرورگر پر یا بسته است."); });
+  }
+  function flushAll() { dirty.forEach(function (id) { clearTimeout(timers[id]); persist(id); }); }
+  window.addEventListener("pagehide", flushAll);
+  document.addEventListener("visibilitychange", function () { if (document.hidden) flushAll(); });
+  function askPersist() {
+    if (persistedOk !== null || !navigator.storage || !navigator.storage.persist) return;
+    persistedOk = false;
+    navigator.storage.persist().then(function (g) { persistedOk = !!g; }).catch(function () {});
+  }
+  function isData(id) { return /^(day-[0-6]|img-e[a-z0-9]{3,30}|log-\d{4}-\d{2}-\d{2})$/.test(id); }
+
+  /* ---------- backup ---------- */
+  function backupDue() {
+    if (!hasPlan()) return false;
+    var m = state.docs["meta-backup"];
+    return !m || Date.now() - m.t > 14 * 86400000;
+  }
+  function exportBackup() {
+    var docs = {};
+    Object.keys(state.docs).forEach(function (k) { if (isData(k) && state.docs[k]) docs[k] = state.docs[k]; });
+    var blob = new Blob([JSON.stringify({ app: "gym-plan", v: 1, at: new Date().toISOString(), docs: docs })], { type: "application/json" });
+    var d = new Date(), name = "gym-backup-" + d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + ".json";
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.append(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    var m = { t: Date.now(), real: true }; state.docs["meta-backup"] = m; putRaw("meta-backup", m).catch(function () {});
+    toast("فایل بکاپ ساخته شد. آن را جایی امن نگه دار."); render();
+  }
+  function readBackup(file) {
+    if (!file) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var j = JSON.parse(fr.result);
+        if (!j || j.app !== "gym-plan" || !j.docs || typeof j.docs !== "object") throw new Error("bad");
+        var n = 0; Object.keys(j.docs).forEach(function (k) { if (isData(k) && j.docs[k] && typeof j.docs[k] === "object") n++; });
+        if (!n) throw new Error("empty");
+        state.pending = j.docs; render();
+      } catch (e) { toast("این فایل، بکاپ برنامه تمرین نیست."); }
+    };
+    fr.readAsText(file);
+  }
+  function applyBackup() {
+    var docs = state.pending; state.pending = null;
+    Object.keys(state.docs).forEach(function (k) { if (isData(k) && !(k in docs)) delDoc(k); });
+    Object.keys(docs).forEach(function (k) { if (isData(k) && docs[k] && typeof docs[k] === "object") setDoc(k, docs[k]); });
+    state.sel = null; state.open = null; toast("برنامه از بکاپ بازگردانی شد."); render();
+  }
+  function init() {
+    openDb().then(function (db) { idb = db; return idbAll(); }).then(function (rows) {
+      rows.forEach(function (r) { state.docs[r.id] = r.data; });
+    }).catch(function () { idb = null; state.docs = lsRead(); }).then(function () {
+      state.ready = true; render();
+    });
+  }
+
+  /* ---------- plan edits ---------- */
+  function mutDay(i, fn) {
+    var d = JSON.parse(JSON.stringify(getDay(i)));
+    if (!Array.isArray(d.ex)) d.ex = [];
+    fn(d); setDoc("day-" + i, d);
+  }
+  function findEx(d, id) { for (var k = 0; k < d.ex.length; k++) if (d.ex[k].id === id) return d.ex[k]; return null; }
+  function clampSets(v) { var n = parseInt(toEn(v).replace(/\D/g, ""), 10); return isNaN(n) ? 0 : Math.min(20, Math.max(0, n)); }
+
+  function shrink(file, max) {
+    return new Promise(function (res, rej) {
+      var url = URL.createObjectURL(file), im = new Image();
+      im.onload = function () {
+        var k = Math.min(1, max / Math.max(im.width, im.height));
+        var c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k));
+        var x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height);
+        x.drawImage(im, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.75));
+      };
+      im.onerror = function () { URL.revokeObjectURL(url); rej(new Error("bad image")); };
+      im.src = url;
+    });
+  }
+  function attachImage(i, exId, file) {
+    if (!file) return;
+    shrink(file, 480).then(function (data) {
+      setDoc("img-" + exId, { d: data });
+      mutDay(i, function (d) { var e = findEx(d, exId); if (e) e.img = true; });
+      render();
+    }).catch(function () { toast("این فایل به‌عنوان تصویر خوانده نشد."); });
+  }
+  function removeImage(i, exId) {
+    delDoc("img-" + exId);
+    mutDay(i, function (d) { var e = findEx(d, exId); if (e) e.img = false; });
+    render();
+  }
+  function addExercise(i) {
+    var id = uid();
+    mutDay(i, function (d) { d.ex.push({ id: id, name: "", sets: 3, reps: "10", note: "", img: false }); });
+    state.open = i; render();
+    var el = document.getElementById("f-" + id + "-name"); if (el) el.focus();
+  }
+  function moveEx(i, exId, dir) {
+    mutDay(i, function (d) {
+      var k = d.ex.findIndex(function (e) { return e.id === exId; }), j = k + dir;
+      if (k < 0 || j < 0 || j >= d.ex.length) return;
+      var t = d.ex[k]; d.ex[k] = d.ex[j]; d.ex[j] = t;
+    });
+    render();
+  }
+  function deleteEx(i, exId) {
+    mutDay(i, function (d) { d.ex = d.ex.filter(function (e) { return e.id !== exId; }); });
+    delDoc("img-" + exId); state.confirm = null; render();
+  }
+  function loadSample() {
+    function mk(name, sets, reps, note) { return { id: uid(), name: name, sets: sets, reps: reps, note: note || "", img: false }; }
+    var plan = {
+      0: { title: "سینه و سه‌سر", ex: [mk("پرس سینه هالتر", 4, "8-10", "استراحت بین ست‌ها ۹۰ ثانیه"), mk("پرس بالا سینه دمبل", 3, "10-12"), mk("زیربغل سیم‌کش ایستاده", 3, "12-15"), mk("پشت بازو سیم‌کش", 3, "12")] },
+      2: { title: "پشت و دوسر", ex: [mk("بارفیکس", 4, "6-8"), mk("زیربغل هالتر خم", 4, "8-10"), mk("روئینگ دمبل تک‌دست", 3, "10"), mk("جلو بازو هالتر", 3, "10-12")] },
+      4: { title: "پا و شانه", ex: [mk("اسکات", 4, "8", "عمق کامل"), mk("پرس پا", 3, "12"), mk("پرس سرشانه دمبل", 3, "10"), mk("نشر جانب", 3, "15")] }
+    };
+    Object.keys(plan).forEach(function (k) { setDoc("day-" + k, { enabled: true, title: plan[k].title, ex: plan[k].ex }); });
+    state.sel = null; state.open = 0; render();
+  }
+
+  /* ---------- workout log ---------- */
+  function setSets(date, exId, n) {
+    var key = "log-" + date, l = JSON.parse(JSON.stringify(state.docs[key] || { sets: {} }));
+    if (!l.sets || Array.isArray(l.sets)) l.sets = {};
+    if (n <= 0) delete l.sets[exId]; else l.sets[exId] = n;
+    setDoc(key, l); render();
+  }
+
+  /* ---------- views ---------- */
+  function typing() { var a = document.activeElement; return !!(a && a.matches && a.matches("input,textarea") && app.contains(a)); }
+
+  function thumb(ex, onclick) {
+    var im = ex.img && state.docs["img-" + ex.id];
+    var kids = im && im.d ? h("img", { src: im.d, alt: ex.name || "تصویر حرکت" }) : svg(ICON_BAR);
+    return h("button", { class: "thumb", type: "button", "aria-label": im ? "نمایش بزرگ تصویر " + ex.name : "بدون تصویر", onclick: im ? function () { state.light = im.d; render(); } : null, disabled: !im }, kids);
+  }
+
+  function trainView() {
+    var i = selDay(), d = getDay(i), dt = dateOf(i), log = (state.docs["log-" + dt.iso] || {}).sets || {};
+    var ex = (d.ex || []).filter(function (e) { return e.name || e.sets; });
+    var total = 0, done = 0;
+    ex.forEach(function (e) { var n = +e.sets || 0; total += n; done += Math.min(n, log[e.id] || 0); });
+    var pct = total ? Math.round(done / total * 100) : 0;
+    var strip = h("div", { class: "strip", role: "tablist", "aria-label": "روزهای هفته" }, DAYS.map(function (x, k) {
+      var dd = getDay(k);
+      return h("button", {
+        type: "button", role: "tab", "aria-selected": k === i ? "true" : "false",
+        "aria-label": x.n + (dd.enabled ? "، روز تمرین" : "، استراحت"),
+        class: "chip" + (k === i ? " sel" : "") + (dd.enabled ? " on" : " off") + (k === todayIdx() ? " today" : ""),
+        onclick: function () { state.sel = k; render(); }
+      }, h("b", null, x.s), h("small", null, toFa(faDate(dateOf(k).obj).split(" ")[0] || "")), h("span", { class: "dot" }));
+    }));
+    var head = h("div", { class: "dayhead" },
+      h("h2", null, DAYS[i].n + (d.title ? " · " + d.title : "")),
+      h("div", { class: "sub" }, faDate(dt.obj) + (i === todayIdx() ? " · امروز" : "")));
+    var out = [strip, head];
+    if (!d.enabled || !ex.length) {
+      out.push(h("div", { class: "empty" },
+        h("h3", null, d.enabled ? "حرکتی ثبت نشده" : (hasPlan() ? "این روز استراحت است" : "هنوز برنامه‌ای نداری")),
+        h("p", null, hasPlan() ? "برای تمرین در این روز، از تنظیمات روز را فعال کن و حرکت‌هایش را اضافه کن." : "از تنظیمات روزهای تمرینت را انتخاب کن و حرکت‌ها را وارد کن، یا با یک برنامه نمونه شروع کن."),
+        h("div", { class: "meta" },
+          h("button", { class: "btn primary", type: "button", onclick: function () { location.hash = "plan"; } }, "رفتن به تنظیمات"),
+          hasPlan() ? null : h("button", { class: "btn", type: "button", onclick: loadSample }, "بارگذاری برنامه نمونه"))));
+      return out;
+    }
+    head.append(
+      h("div", { class: "bar" + (pct === 100 ? " full" : ""), role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct), "aria-label": "پیشرفت تمرین" }, h("i", { style: "width:" + pct + "%" })),
+      h("div", { class: "progtxt" }, h("span", null, toFa(done) + " از " + toFa(total) + " ست انجام شد"), h("span", null, toFa(pct) + "٪")));
+    if (pct === 100) out.push(h("div", { class: "win", role: "status" }, "تمرین این روز کامل شد."));
+    out.push(h("div", { class: "list" }, ex.map(function (e) {
+      var n = Math.max(0, Math.min(20, +e.sets || 0)), c = Math.min(n, log[e.id] || 0), full = n > 0 && c >= n;
+      var sets = [];
+      for (var s = 1; s <= n; s++) (function (s) {
+        sets.push(h("button", {
+          class: "set", type: "button", "aria-pressed": s <= c ? "true" : "false", "aria-label": "ست " + toFa(s),
+          onclick: function () { setSets(dt.iso, e.id, s === c ? s - 1 : s); }
+        }, toFa(s)));
+      })(s);
+      return h("div", { class: "card" + (full ? " done" : "") },
+        thumb(e),
+        h("div", { class: "cbody" },
+          h("div", { class: "crow" },
+            h("h3", { class: "cname" }, e.name || "حرکت بدون نام"),
+            h("button", {
+              class: "allcheck", type: "button", "aria-pressed": full ? "true" : "false", "aria-label": "انجام همه ست‌های " + (e.name || "حرکت"),
+              onclick: function () { setSets(dt.iso, e.id, full ? 0 : n); }
+            }, svg(ICON_CHECK))),
+          h("div", { class: "meta" },
+            h("span", { class: "tag" }, toFa(n) + " ست"),
+            e.reps ? h("span", { class: "tag" }, toFa(e.reps) + " تکرار") : null),
+          e.note ? h("p", { class: "note" }, e.note) : null),
+        n ? h("div", { class: "setlabel" }, "روی هر ست بعد از انجام بزن") : null,
+        n ? h("div", { class: "sets" }, sets) : null);
+    })));
+    return out;
+  }
+
+  function exEditor(i, e, idx, count) {
+    var im = e.img && state.docs["img-" + e.id];
+    var fileId = "f-" + e.id + "-file";
+    function upd(field, val) { mutDay(i, function (d) { var x = findEx(d, e.id); if (x) x[field] = val; }); }
+    var file = h("input", { type: "file", accept: "image/*", id: fileId, class: "sr", tabindex: "-1", onchange: function (ev) { attachImage(i, e.id, ev.target.files[0]); } });
+    var pick = h("button", { class: "pick", type: "button", "aria-label": im ? "تغییر تصویر" : "افزودن تصویر", onclick: function () { file.click(); } },
+      im && im.d ? h("img", { src: im.d, alt: "" }) : h("span", null, "افزودن", h("br"), "تصویر"));
+    var asking = state.confirm === e.id;
+    return h("div", { class: "exed" },
+      h("div", null, pick, file),
+      h("div", { class: "fields" },
+        h("div", { class: "field" }, h("label", { for: "f-" + e.id + "-name" }, "نام حرکت"),
+          h("input", { class: "in", id: "f-" + e.id + "-name", value: e.name || "", autocomplete: "off", oninput: function (ev) { upd("name", ev.target.value); } })),
+        h("div", { class: "two" },
+          h("div", { class: "field" }, h("label", { for: "f-" + e.id + "-sets" }, "تعداد ست"),
+            h("input", { class: "in", id: "f-" + e.id + "-sets", inputmode: "numeric", value: toFa(e.sets || ""), autocomplete: "off",
+              oninput: function (ev) { var n = clampSets(ev.target.value); upd("sets", n); },
+              onblur: function (ev) { ev.target.value = toFa(clampSets(ev.target.value) || ""); } })),
+          h("div", { class: "field" }, h("label", { for: "f-" + e.id + "-reps" }, "تکرار (مثلاً ۸-۱۰)"),
+            h("input", { class: "in", id: "f-" + e.id + "-reps", value: toFa(e.reps || ""), autocomplete: "off",
+              oninput: function (ev) { upd("reps", toEn(ev.target.value)); } }))),
+        h("div", { class: "field" }, h("label", { for: "f-" + e.id + "-note" }, "یادداشت (اختیاری)"),
+          h("input", { class: "in", id: "f-" + e.id + "-note", value: e.note || "", autocomplete: "off", oninput: function (ev) { upd("note", ev.target.value); } }))),
+      h("div", { class: "tools" },
+        h("button", { class: "btn small", type: "button", disabled: idx === 0, onclick: function () { moveEx(i, e.id, -1); } }, "بالا"),
+        h("button", { class: "btn small", type: "button", disabled: idx === count - 1, onclick: function () { moveEx(i, e.id, 1); } }, "پایین"),
+        im ? h("button", { class: "btn small", type: "button", onclick: function () { removeImage(i, e.id); } }, "حذف تصویر") : null,
+        h("button", {
+          class: "btn small danger", type: "button",
+          onclick: function () {
+            if (state.confirm === e.id) return deleteEx(i, e.id);
+            state.confirm = e.id; render();
+            setTimeout(function () { if (state.confirm === e.id) { state.confirm = null; if (!typing()) render(); } }, 3500);
+          }
+        }, asking ? "مطمئنی؟ دوباره بزن" : "حذف حرکت")));
+  }
+
+  function settingsView() {
+    var items = DAYS.map(function (x, i) {
+      var d = getDay(i), open = state.open === i, n = (d.ex || []).length;
+      var sub = d.enabled ? ((d.title ? d.title + " · " : "") + toFa(n) + " حرکت") : "استراحت";
+      var head = h("div", { class: "acchead" },
+        h("button", {
+          class: "switch", type: "button", role: "switch", "aria-checked": d.enabled ? "true" : "false", "aria-label": "روز تمرین: " + x.n,
+          onclick: function () { mutDay(i, function (dd) { dd.enabled = !dd.enabled; }); if (!getDay(i).enabled && state.open === i) state.open = null; else if (getDay(i).enabled) state.open = i; render(); }
+        }),
+        h("button", { class: "accbtn", type: "button", "aria-expanded": open ? "true" : "false", onclick: function () { state.open = open ? null : i; render(); } },
+          h("b", null, x.n), h("span", null, sub)),
+        h("span", { class: "chev" }, svg(ICON_CHEV)));
+      var body = null;
+      if (open) {
+        var title = h("div", { class: "field" }, h("label", { for: "title-" + i }, "عنوان تمرین این روز (مثلاً سینه و سه‌سر)"),
+          h("input", { class: "in", id: "title-" + i, value: d.title || "", autocomplete: "off", oninput: function (ev) { mutDay(i, function (dd) { dd.title = ev.target.value; }); } }));
+        body = h("div", { class: "accbody" },
+          d.enabled ? null : h("p", { class: "note" }, "این روز الان استراحت است. کلید سمت راست را بزن تا روز تمرین شود."),
+          title,
+          (d.ex || []).map(function (e, k) { return exEditor(i, e, k, d.ex.length); }),
+          h("div", null, h("button", { class: "btn primary", type: "button", onclick: function () { if (!getDay(i).enabled) mutDay(i, function (dd) { dd.enabled = true; }); addExercise(i); } }, "افزودن حرکت")));
+      }
+      return h("section", { class: "acc" + (open ? " open" : "") }, head, body);
+    });
+    var m = state.docs["meta-backup"];
+    var last = m && m.real ? "آخرین بکاپ: " + toFa(faDate(new Date(m.t))) : "هنوز بکاپ نگرفته‌ای.";
+    var fileIn = h("input", { type: "file", accept: ".json,application/json", id: "restore-file", class: "sr", tabindex: "-1", onchange: function (ev) { readBackup(ev.target.files[0]); ev.target.value = ""; } });
+    var backup = h("section", { class: "acc" }, h("div", { class: "accbody", style: "border-top:0" },
+      h("b", null, "بکاپ برنامه"),
+      h("p", { class: "note" }, "همه چیز فقط در همین مرورگر ذخیره است. یک فایل بکاپ بگیر تا اگر اطلاعات مرورگر پاک شد، برنامه‌ات را برگردانی یا به گوشی دیگر ببری. " + last),
+      state.pending ? h("div", { class: "win", style: "background:var(--bg);color:var(--ink);border:1px solid var(--line)" },
+        h("p", { style: "margin:0 0 8px" }, "با بازگردانی، برنامه و تیک‌های فعلی با محتوای فایل جایگزین می‌شوند."),
+        h("div", { class: "meta" },
+          h("button", { class: "btn primary small", type: "button", onclick: applyBackup }, "جایگزین کن"),
+          h("button", { class: "btn small", type: "button", onclick: function () { state.pending = null; render(); } }, "انصراف"))) : null,
+      h("div", { class: "meta" },
+        h("button", { class: "btn primary", type: "button", onclick: exportBackup }, "دریافت بکاپ"),
+        h("button", { class: "btn", type: "button", onclick: function () { fileIn.click(); } }, "بازگردانی از فایل"), fileIn),
+      h("p", { class: "note" }, persistedOk ? "مرورگر ذخیره‌ی ماندگار را برای این اپ پذیرفته است." : "مرورگر ذخیره‌ی ماندگار را تضمین نکرده؛ بکاپ را جدی بگیر.")));
+    return [
+      h("div", { class: "days" }, items),
+      backup,
+      hasPlan() ? null : h("div", { class: "foot" }, h("div", { class: "row" }, h("button", { class: "btn", type: "button", onclick: loadSample }, "بارگذاری برنامه نمونه")))
+    ];
+  }
+
+  function render() {
+    var scrollY = window.scrollY;
+    app.replaceChildren();
+    var now = new Date();
+    var wd = DAYS[todayIdx()].n;
+    app.append(
+      h("header", { class: "top" },
+        h("div", { class: "eyebrow" }, wd + " " + faDate(now)),
+        h("h1", { class: "brand" }, "برنامه تمرین"),
+        h("div", { class: "tabs", role: "tablist" },
+          h("button", { class: "tab", type: "button", role: "tab", "aria-selected": state.tab === "today" ? "true" : "false", onclick: function () { location.hash = "today"; } }, "تمرین روز"),
+          h("button", { class: "tab", type: "button", role: "tab", "aria-selected": state.tab === "plan" ? "true" : "false", onclick: function () { location.hash = "plan"; } }, "تنظیمات برنامه"))));
+    if (!state.ready) app.append(h("div", { class: "foot" }, "در حال بارگذاری…"));
+    else {
+      if (backupDue() && state.tab !== "plan") app.append(h("div", { class: "offline", role: "status" },
+        h("span", null, (state.docs["meta-backup"] && state.docs["meta-backup"].real ? "بیشتر از دو هفته است بکاپ نگرفته‌ای. " : "هنوز از برنامه‌ات بکاپ نگرفته‌ای. ")),
+        h("button", { class: "btn small", type: "button", onclick: exportBackup }, "دریافت بکاپ")));
+      (state.tab === "plan" ? settingsView() : trainView()).forEach(function (n) { app.append(n); });
+    }
+    if (state.light) {
+      var v = h("div", { class: "veil", role: "dialog", "aria-label": "تصویر حرکت", onclick: function () { state.light = null; render(); } },
+        h("img", { src: state.light, alt: "" }),
+        h("button", { class: "x", type: "button", "aria-label": "بستن", onclick: function () { state.light = null; render(); } }, "✕"));
+      app.append(v);
+    }
+    window.scrollTo(0, scrollY);
+  }
+
+  function route() {
+    var t = (location.hash || "").replace("#", "");
+    state.tab = t === "plan" ? "plan" : "today";
+    render();
+  }
+  window.addEventListener("hashchange", route);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && state.light) { state.light = null; render(); } });
+
+  route();
+  init();
+})();
+</script>
+</body>
+</html>
